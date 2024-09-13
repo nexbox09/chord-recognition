@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chord and Lyrics Analyzer</title>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        h1, h2 { text-align: center; }
+        #uploadForm, #youtubeForm { margin-bottom: 20px; }
+        #results { display: none; }
+        #chordChart { width: 100%; height: 400px; }
+        #lyricsContainer { margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <h1>Chord and Lyrics Analyzer</h1>
+    <form id="uploadForm">
+        <h2>Analyze local audio file:</h2>
+        <input type="file" id="audioFile" accept=".wav,.mp3,.ogg" required>
+        <select id="language">
+            <option value="">Auto-detect language</option>
+            <option value="en">English</option>
+            <option value="es">Spanish</option>
+            <option value="fr">French</option>
+            <!-- Add more language options as needed -->
+        </select>
+        <select id="modelSize">
+            <option value="tiny">Tiny</option>
+            <option value="base" selected>Base</option>
+            <option value="small">Small</option>
+            <option value="medium">Medium</option>
+            <option value="large">Large</option>
+        </select>
+        <button type="submit">Analyze File</button>
+    </form>
+    <form id="youtubeForm">
+        <h2>Analyze YouTube video:</h2>
+        <input type="url" id="youtubeUrl" placeholder="Enter YouTube URL" required>
+        <select id="youtubeLanguage">
+            <option value="">Auto-detect language</option>
+            <option value="en">English</option>
+            <option value="es">Spanish</option>
+            <option value="fr">French</option>
+            <!-- Add more language options as needed -->
+        </select>
+        <select id="youtubeModelSize">
+            <option value="tiny">Tiny</option>
+            <option value="base" selected>Base</option>
+            <option value="small">Small</option>
+            <option value="medium">Medium</option>
+            <option value="large">Large</option>
+        </select>
+        <button type="submit">Analyze YouTube</button>
+    </form>
+    <div id="results">
+        <h2>Analysis Results</h2>
+        <p id="detectedLanguage"></p>
+        <canvas id="chordChart"></canvas>
+        <div id="lyricsContainer"></div>
+    </div>
+
+    <script>
+        const uploadForm = document.getElementById('uploadForm');
+        const youtubeForm = document.getElementById('youtubeForm');
+        const results = document.getElementById('results');
+        const chordChart = document.getElementById('chordChart');
+        const lyricsContainer = document.getElementById('lyricsContainer');
+        const detectedLanguage = document.getElementById('detectedLanguage');
+
+        uploadForm.addEventListener('submit', handleSubmit);
+        youtubeForm.addEventListener('submit', handleSubmit);
+
+        async function handleSubmit(e) {
+            e.preventDefault();
+            const formData = new FormData();
+            
+            if (this.id === 'uploadForm') {
+                formData.append('file', document.getElementById('audioFile').files[0]);
+                formData.append('language', document.getElementById('language').value);
+                formData.append('model_size', document.getElementById('modelSize').value);
+            } else {
+                formData.append('youtube_url', document.getElementById('youtubeUrl').value);
+                formData.append('language', document.getElementById('youtubeLanguage').value);
+                formData.append('model_size', document.getElementById('youtubeModelSize').value);
+            }
+
+            try {
+                const response = await axios.post('/', formData, {
+                    headers: { 'Content-Type': 'multipart/form-data' }
+                });
+
+                displayResults(response.data);
+            } catch (error) {
+                console.error('Error:', error);
+                alert('An error occurred during analysis.');
+            }
+        }
+
+        function displayResults(data) {
+            results.style.display = 'block';
+            detectedLanguage.textContent = `Detected Language: ${data.language}`;
+
+            // Display chord chart
+            const ctx = chordChart.getContext('2d');
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: data.chords.map(chord => chord.timestamp.toFixed(2)),
+                    datasets: [{
+                        label: 'Chords',
+                        data: data.chords.map(chord => 1),
+                        backgroundColor: data.chords.map(() => `rgba(${Math.random()*255},${Math.random()*255},${Math.random()*255},0.5)`)
+                    }]
+                },
+                options: {
+                    scales: {
+                        y: { display: false },
+                        x: { title: { display: true, text: 'Time (seconds)' } }
+                    },
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: (context) => data.chords[context.dataIndex].chord
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Display lyrics with chords
+            lyricsContainer.innerHTML = '<h3>Lyrics with Chords</h3>';
+            data.lyrics.forEach(line => {
+                const lineElement = document.createElement('p');
+                lineElement.textContent = `[${line.start.toFixed(2)}s - ${line.end.toFixed(2)}s] ${line.text}`;
+                
+                // Find chords that occur during this line
+                const relevantChords = data.chords.filter(chord => 
+                    chord.timestamp >= line.start && chord.timestamp <= line.end
+                );
+                if (relevantChords.length > 0) {
+                    const chordSpan = document.createElement('span');
+                    chordSpan.textContent = ` (Chords: ${relevantChords.map(c => c.chord).join(', ')})`;
+                    chordSpan.style.color = 'blue';
+                    lineElement.appendChild(chordSpan);
+                }
+                
+                lyricsContainer.appendChild(lineElement);
+            });
+        }
+    </script>
+</body>
+</html>
