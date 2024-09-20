@@ -7,55 +7,170 @@
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
-        h1, h2 { text-align: center; }
-        #uploadForm, #youtubeForm { margin-bottom: 20px; }
-        #results { display: none; }
-        #chordChart { width: 100%; height: 400px; }
-        #lyricsContainer { margin-top: 20px; }
+        body {
+            font-family: 'Arial', sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+
+        h1, h2 {
+            text-align: center;
+            color: #333;
+        }
+
+        .form-container {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+
+        .form-container h2 {
+            margin-bottom: 10px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 3px;
+            box-sizing: border-box;
+        }
+
+        .form-select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 3px;
+            box-sizing: border-box;
+            appearance: none; /* For consistent dropdown styling */
+        }
+
+        .form-button {
+            background-color: #007bff;
+            color: #fff;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .form-button:hover {
+            background-color: #0056b3;
+        }
+
+        #results {
+            display: none;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        #chordChart {
+            width: 100%;
+            height: 400px;
+        }
+
+        #lyricsContainer {
+            margin-top: 20px;
+        }
+
+        .loading {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 24px;
+        }
+
+        .loading.active {
+            display: block;
+        }
     </style>
 </head>
 <body>
     <h1>Chord and Lyrics Analyzer</h1>
-    <form id="uploadForm">
-        <h2>Analyze local audio file:</h2>
-        <input type="file" id="audioFile" accept=".wav,.mp3,.ogg" required>
-        <select id="language">
-            <option value="">Auto-detect language</option>
-            <option value="en">English</option>
-            <option value="es">Spanish</option>
-            <option value="fr">French</option>
-            <!-- Add more language options as needed -->
-        </select>
-        <select id="modelSize">
-            <option value="tiny">Tiny</option>
-            <option value="base" selected>Base</option>
-            <option value="small">Small</option>
-            <option value="medium">Medium</option>
-            <option value="large">Large</option>
-        </select>
-        <button type="submit">Analyze File</button>
-    </form>
-    <form id="youtubeForm">
-        <h2>Analyze YouTube video:</h2>
-        <input type="url" id="youtubeUrl" placeholder="Enter YouTube URL" required>
-        <select id="youtubeLanguage">
-            <option value="">Auto-detect language</option>
-            <option value="en">English</option>
-            <option value="es">Spanish</option>
-            <option value="fr">French</option>
-            <!-- Add more language options as needed -->
-        </select>
-        <select id="youtubeModelSize">
-            <option value="tiny">Tiny</option>
-            <option value="base" selected>Base</option>
-            <option value="small">Small</option>
-            <option value="medium">Medium</option>
-            <option value="large">Large</option>
-        </select>
-        <button type="submit">Analyze YouTube</button>
-    </form>
+
+    <div class="form-container">
+        <h2>Analyze Local Audio File</h2>
+        <form id="uploadForm">
+            <div class="form-group">
+                <label for="audioFile" class="form-label">Select Audio File:</label>
+                <input type="file" id="audioFile" accept=".wav,.mp3,.ogg" required class="form-input">
+            </div>
+            <div class="form-group">
+                <label for="language" class="form-label">Language:</label>
+                <select id="language" class="form-select">
+                    <option value="">Auto-detect language</option>
+                    <option value="en">English</option>
+                    <option value="es">Spanish</option>
+                    <option value="fr">French</option>
+                    <!-- Add more language options as needed -->
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="modelSize" class="form-label">Model Size:</label>
+                <select id="modelSize" class="form-select">
+                    <option value="tiny">Tiny</option>
+                    <option value="base" selected>Base</option>
+                    <option value="small">Small</option>
+                    <option value="medium">Medium</option>
+                    <option value="large">Large</option>
+                </select>
+            </div>
+            <button type="submit" class="form-button">Analyze File</button>
+        </form>
+    </div>
+
+    <div class="form-container">
+        <h2>Analyze YouTube Video</h2>
+        <form id="youtubeForm">
+            <div class="form-group">
+                <label for="youtubeUrl" class="form-label">YouTube URL:</label>
+                <input type="url" id="youtubeUrl" placeholder="Enter YouTube URL" required class="form-input">
+            </div>
+            <div class="form-group">
+                <label for="youtubeLanguage" class="form-label">Language:</label>
+                <select id="youtubeLanguage" class="form-select">
+                    <option value="">Auto-detect language</option>
+                    <option value="en">English</option>
+                    <option value="es">Spanish</option>
+                    <option value="fr">French</option>
+                    <!-- Add more language options as needed -->
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="youtubeModelSize" class="form-label">Model Size:</label>
+                <select id="youtubeModelSize" class="form-select">
+                    <option value="tiny">Tiny</option>
+                    <option value="base" selected>Base</option>
+                    <option value="small">Small</option>
+                    <option value="medium">Medium</option>
+                    <option value="large">Large</option>
+                </select>
+            </div>
+            <button type="submit" class="form-button">Analyze YouTube</button>
+        </form>
+    </div>
+
     <div id="results">
+        <div class="loading">Loading...</div>
         <h2>Analysis Results</h2>
         <p id="detectedLanguage"></p>
         <canvas id="chordChart"></canvas>
@@ -69,6 +184,7 @@
         const chordChart = document.getElementById('chordChart');
         const lyricsContainer = document.getElementById('lyricsContainer');
         const detectedLanguage = document.getElementById('detectedLanguage');
+        const loading = document.querySelector('.loading');
 
         uploadForm.addEventListener('submit', handleSubmit);
         youtubeForm.addEventListener('submit', handleSubmit);
@@ -76,7 +192,9 @@
         async function handleSubmit(e) {
             e.preventDefault();
             const formData = new FormData();
-            
+
+            loading.classList.add('active'); // Show loading indicator
+
             if (this.id === 'uploadForm') {
                 formData.append('file', document.getElementById('audioFile').files[0]);
                 formData.append('language', document.getElementById('language').value);
@@ -93,9 +211,11 @@
                 });
 
                 displayResults(response.data);
+                loading.classList.remove('active'); // Hide loading indicator
             } catch (error) {
                 console.error('Error:', error);
                 alert('An error occurred during analysis.');
+                loading.classList.remove('active'); // Hide loading indicator
             }
         }
 
