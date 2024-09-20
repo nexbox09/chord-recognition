@@ -13,4 +13,4 @@ os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 configure_routes(app)
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', debug=True)
+    app.run(host='0.0.0.0', debug=True, use_reloader=False) 

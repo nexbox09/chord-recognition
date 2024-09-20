@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analysis Results</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        h1, h2 {
+            color: #2c3e50;
+        }
+        .results-container {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .lyric-line {
+            margin-bottom: 15px;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: baseline;
+        }
+        .chord {
+            color: #3498db;
+            font-weight: bold;
+            font-family: monospace;
+            font-size: 1.1em;
+            margin-right: 5px;
+            min-width: 40px;
+        }
+        .lyrics {
+            margin-right: 10px;
+        }
+        .timestamp {
+            color: #7f8c8d;
+            font-size: 0.8em;
+            margin-right: 10px;
+            min-width: 50px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Analysis Results</h1>
+    
+    <div class="results-container">
+        <h2>Chords and Lyrics</h2>
+        <div id="syncedResults"></div>
+    </div>
+
+    <script>
+        // Obtener los resultados de la URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const results = JSON.parse(decodeURIComponent(urlParams.get('results')));
+
+        function formatTime(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            return `${mins}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        function displaySyncedResults() {
+            const syncedResults = document.getElementById('syncedResults');
+            let currentChordIndex = 0;
+            let currentLyricIndex = 0;
+            let currentLine = null;
+
+            while (currentChordIndex < results.chords.length || currentLyricIndex < results.lyrics.length) {
+                const chord = results.chords[currentChordIndex];
+                const lyric = results.lyrics[currentLyricIndex];
+
+                if (!currentLine || (chord && (!lyric || chord.timestamp < lyric.start))) {
+                    // Nuevo acorde, nueva línea
+                    if (currentLine) {
+                        syncedResults.appendChild(currentLine);
+                    }
+                    currentLine = document.createElement('div');
+                    currentLine.className = 'lyric-line';
+
+                    let timestamp = document.createElement('span');
+                    timestamp.className = 'timestamp';
+                    timestamp.textContent = formatTime(chord.timestamp);
+                    currentLine.appendChild(timestamp);
+
+                    let chordSpan = document.createElement('span');
+                    chordSpan.className = 'chord';
+                    chordSpan.textContent = chord.chord;
+                    currentLine.appendChild(chordSpan);
+
+                    currentChordIndex++;
+                } else if (lyric && (!chord || lyric.start <= chord.timestamp)) {
+                    // Nueva letra
+                    let lyricSpan = document.createElement('span');
+                    lyricSpan.className = 'lyrics';
+                    lyricSpan.textContent = lyric.text + ' ';
+                    currentLine.appendChild(lyricSpan);
+                    currentLyricIndex++;
+                }
+            }
+
+            if (currentLine) {
+                syncedResults.appendChild(currentLine);
+            }
+        }
+
+        displaySyncedResults();
+    </script>
+</body>
+</html>

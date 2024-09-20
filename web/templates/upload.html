@@ -4,272 +4,268 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Chord and Lyrics Analyzer</title>
-    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body {
             font-family: 'Arial', sans-serif;
+            line-height: 1.6;
+            color: #333;
             max-width: 800px;
             margin: 0 auto;
             padding: 20px;
             background-color: #f4f4f4;
         }
-
-        h1, h2 {
+        h1 {
+            color: #2c3e50;
             text-align: center;
-            color: #333;
+            margin-bottom: 30px;
         }
-
         .form-container {
             background-color: #fff;
-            padding: 20px;
-            border-radius: 5px;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+        .form-group {
             margin-bottom: 20px;
         }
-
-        .form-container h2 {
-            margin-bottom: 10px;
-        }
-
-        .form-group {
-            margin-bottom: 15px;
-        }
-
-        .form-label {
+        label {
             display: block;
             margin-bottom: 5px;
             font-weight: bold;
+            color: #34495e;
         }
-
-        .form-input {
+        input[type="file"],
+        input[type="text"],
+        select {
             width: 100%;
             padding: 10px;
-            border: 1px solid #ccc;
-            border-radius: 3px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
             box-sizing: border-box;
+            font-size: 16px;
         }
-
-        .form-select {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid #ccc;
-            border-radius: 3px;
-            box-sizing: border-box;
-            appearance: none; /* For consistent dropdown styling */
+        input[type="file"] {
+            padding: 10px 0;
         }
-
-        .form-button {
-            background-color: #007bff;
+        select {
+            appearance: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            background-image: url('data:image/svg+xml;utf8,<svg fill="%23333" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/><path d="M0 0h24v24H0z" fill="none"/></svg>');
+            background-repeat: no-repeat;
+            background-position: right 10px top 50%;
+            background-size: 20px auto;
+        }
+        button {
+            background-color: #3498db;
             color: #fff;
-            padding: 10px 20px;
+            padding: 12px 20px;
             border: none;
-            border-radius: 3px;
+            border-radius: 4px;
             cursor: pointer;
+            font-size: 16px;
             transition: background-color 0.3s ease;
         }
-
-        .form-button:hover {
-            background-color: #0056b3;
+        button:hover {
+            background-color: #2980b9;
         }
-
-        #results {
+        .form-container h2 {
+            color: #2c3e50;
+            margin-top: 0;
+            margin-bottom: 20px;
+        }
+        .modal {
             display: none;
-            background-color: #fff;
-            padding: 20px;
-            border-radius: 5px;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-        }
-
-        #chordChart {
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
             width: 100%;
-            height: 400px;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
         }
-
-        #lyricsContainer {
-            margin-top: 20px;
+        .modal-content {
+            background-color: #fefefe;
+            margin: 15% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+            max-width: 400px;
+            border-radius: 5px;
+            text-align: center;
         }
-
-        .loading {
-            display: none;
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            font-size: 24px;
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
         }
-
-        .loading.active {
-            display: block;
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
     </style>
+    <script>
+        function updateOptions(formId) {
+            var analysisType = document.getElementById(formId === 'uploadForm' ? 'analysisType' : 'analysisTypeYT').value;
+            var languageSelect = document.getElementById(formId === 'uploadForm' ? 'language' : 'languageYT');
+            var modelSizeSelect = document.getElementById(formId === 'uploadForm' ? 'modelSize' : 'modelSizeYT');
+            
+            if (analysisType === 'chords_only') {
+                languageSelect.disabled = true;
+                modelSizeSelect.disabled = true;
+            } else {
+                languageSelect.disabled = false;
+                modelSizeSelect.disabled = false;
+            }
+        }
+        
+        function showLoadingModal(formId) {
+            const form = document.getElementById(formId);
+            const analysisType = form.querySelector('[name="analysisType"]').value;
+            const modelSize = form.querySelector('[name="modelSize"]').value;
+            let duration = 0;
+            
+            if (formId === 'uploadForm') {
+                const fileInput = document.getElementById('file');
+                if (fileInput.files && fileInput.files[0]) {
+                    // Estimate duration based on file size (very rough estimate)
+                    duration = Math.round(fileInput.files[0].size / (44100 * 2 * 2)); // Assuming 44.1kHz, 16-bit stereo
+                }
+            } else {
+                // For YouTube, we don't know the duration, so we'll use a default value
+                duration = 240; // Assume 4 minutes for YouTube videos
+            }
+            
+            const estimatedTime = calculateEstimatedTime(analysisType, modelSize, duration);
+            
+            document.getElementById('estimatedTime').textContent = estimatedTime;
+            document.getElementById('loadingModal').style.display = 'block';
+            
+            return true; // Allow the form to submit
+        }
+        
+        function calculateEstimatedTime(analysisType, modelSize, duration) {
+            // These factors are rough estimates and should be adjusted based on actual performance
+            const baseTime = duration * 0.5; // Base processing time
+            let modelFactor = 1;
+            
+            switch(modelSize) {
+                case 'tiny': modelFactor = 0.5; break;
+                case 'base': modelFactor = 1; break;
+                case 'small': modelFactor = 1.5; break;
+                case 'medium': modelFactor = 2; break;
+                case 'large': modelFactor = 3; break;
+            }
+            
+            let estimatedSeconds = baseTime * modelFactor;
+            if (analysisType === 'chords_and_lyrics') {
+                estimatedSeconds *= 1.5; // Assume lyrics analysis takes 50% more time
+            }
+            
+            const minutes = Math.floor(estimatedSeconds / 60);
+            const seconds = Math.round(estimatedSeconds % 60);
+            
+            return `${minutes} minutos y ${seconds} segundos`;
+        }
+    </script>
 </head>
 <body>
     <h1>Chord and Lyrics Analyzer</h1>
 
     <div class="form-container">
         <h2>Analyze Local Audio File</h2>
-        <form id="uploadForm">
+        <form id="uploadForm" action="/analyze" method="post" enctype="multipart/form-data" onsubmit="return showLoadingModal('uploadForm')">
             <div class="form-group">
-                <label for="audioFile" class="form-label">Select Audio File:</label>
-                <input type="file" id="audioFile" accept=".wav,.mp3,.ogg" required class="form-input">
+                <label for="file">Select Audio File:</label>
+                <input type="file" id="file" name="file" accept=".wav,.mp3,.ogg" required>
             </div>
+
             <div class="form-group">
-                <label for="language" class="form-label">Language:</label>
-                <select id="language" class="form-select">
-                    <option value="">Auto-detect language</option>
+                <label for="analysisType">Analysis Type:</label>
+                <select id="analysisType" name="analysisType" onchange="updateOptions('uploadForm')" required>
+                    <option value="chords_only">Chords Only</option>
+                    <option value="chords_and_lyrics">Chords and Lyrics</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="language">Language:</label>
+                <select id="language" name="language" disabled>
+                    <option value="auto">Auto-detect language</option>
                     <option value="en">English</option>
                     <option value="es">Spanish</option>
                     <option value="fr">French</option>
-                    <!-- Add more language options as needed -->
                 </select>
             </div>
+
             <div class="form-group">
-                <label for="modelSize" class="form-label">Model Size:</label>
-                <select id="modelSize" class="form-select">
+                <label for="modelSize">Model Size:</label>
+                <select id="modelSize" name="modelSize" disabled>
                     <option value="tiny">Tiny</option>
-                    <option value="base" selected>Base</option>
+                    <option value="base">Base</option>
                     <option value="small">Small</option>
                     <option value="medium">Medium</option>
                     <option value="large">Large</option>
                 </select>
             </div>
-            <button type="submit" class="form-button">Analyze File</button>
+
+            <button type="submit">Analyze File</button>
         </form>
     </div>
 
     <div class="form-container">
         <h2>Analyze YouTube Video</h2>
-        <form id="youtubeForm">
+        <form id="youtubeForm" action="/analyze" method="post" onsubmit="return showLoadingModal('youtubeForm')">
             <div class="form-group">
-                <label for="youtubeUrl" class="form-label">YouTube URL:</label>
-                <input type="url" id="youtubeUrl" placeholder="Enter YouTube URL" required class="form-input">
+                <label for="youtube_url">YouTube URL:</label>
+                <input type="text" id="youtube_url" name="youtube_url" placeholder="Enter YouTube URL" required>
             </div>
+
             <div class="form-group">
-                <label for="youtubeLanguage" class="form-label">Language:</label>
-                <select id="youtubeLanguage" class="form-select">
-                    <option value="">Auto-detect language</option>
+                <label for="analysisTypeYT">Analysis Type:</label>
+                <select id="analysisTypeYT" name="analysisType" onchange="updateOptions('youtubeForm')" required>
+                    <option value="chords_only">Chords Only</option>
+                    <option value="chords_and_lyrics">Chords and Lyrics</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="languageYT">Language:</label>
+                <select id="languageYT" name="language" disabled>
+                    <option value="auto">Auto-detect language</option>
                     <option value="en">English</option>
                     <option value="es">Spanish</option>
                     <option value="fr">French</option>
-                    <!-- Add more language options as needed -->
                 </select>
             </div>
+
             <div class="form-group">
-                <label for="youtubeModelSize" class="form-label">Model Size:</label>
-                <select id="youtubeModelSize" class="form-select">
+                <label for="modelSizeYT">Model Size:</label>
+                <select id="modelSizeYT" name="modelSize" disabled>
                     <option value="tiny">Tiny</option>
-                    <option value="base" selected>Base</option>
+                    <option value="base">Base</option>
                     <option value="small">Small</option>
                     <option value="medium">Medium</option>
                     <option value="large">Large</option>
                 </select>
             </div>
-            <button type="submit" class="form-button">Analyze YouTube</button>
+
+            <button type="submit">Analyze YouTube</button>
         </form>
     </div>
 
-    <div id="results">
-        <div class="loading">Loading...</div>
-        <h2>Analysis Results</h2>
-        <p id="detectedLanguage"></p>
-        <canvas id="chordChart"></canvas>
-        <div id="lyricsContainer"></div>
+    <div id="loadingModal" class="modal">
+        <div class="modal-content">
+            <h2>Analizando...</h2>
+            <div class="spinner"></div>
+            <p>Tiempo estimado: <span id="estimatedTime"></span></p>
+            <p>Por favor, espere mientras procesamos su archivo.</p>
+        </div>
     </div>
-
-    <script>
-        const uploadForm = document.getElementById('uploadForm');
-        const youtubeForm = document.getElementById('youtubeForm');
-        const results = document.getElementById('results');
-        const chordChart = document.getElementById('chordChart');
-        const lyricsContainer = document.getElementById('lyricsContainer');
-        const detectedLanguage = document.getElementById('detectedLanguage');
-        const loading = document.querySelector('.loading');
-
-        uploadForm.addEventListener('submit', handleSubmit);
-        youtubeForm.addEventListener('submit', handleSubmit);
-
-        async function handleSubmit(e) {
-            e.preventDefault();
-            const formData = new FormData();
-
-            loading.classList.add('active'); // Show loading indicator
-
-            if (this.id === 'uploadForm') {
-                formData.append('file', document.getElementById('audioFile').files[0]);
-                formData.append('language', document.getElementById('language').value);
-                formData.append('model_size', document.getElementById('modelSize').value);
-            } else {
-                formData.append('youtube_url', document.getElementById('youtubeUrl').value);
-                formData.append('language', document.getElementById('youtubeLanguage').value);
-                formData.append('model_size', document.getElementById('youtubeModelSize').value);
-            }
-
-            try {
-                const response = await axios.post('/', formData, {
-                    headers: { 'Content-Type': 'multipart/form-data' }
-                });
-
-                displayResults(response.data);
-                loading.classList.remove('active'); // Hide loading indicator
-            } catch (error) {
-                console.error('Error:', error);
-                alert('An error occurred during analysis.');
-                loading.classList.remove('active'); // Hide loading indicator
-            }
-        }
-
-        function displayResults(data) {
-            results.style.display = 'block';
-            detectedLanguage.textContent = `Detected Language: ${data.language}`;
-
-            // Display chord chart
-            const ctx = chordChart.getContext('2d');
-            new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: data.chords.map(chord => chord.timestamp.toFixed(2)),
-                    datasets: [{
-                        label: 'Chords',
-                        data: data.chords.map(chord => 1),
-                        backgroundColor: data.chords.map(() => `rgba(${Math.random()*255},${Math.random()*255},${Math.random()*255},0.5)`)
-                    }]
-                },
-                options: {
-                    scales: {
-                        y: { display: false },
-                        x: { title: { display: true, text: 'Time (seconds)' } }
-                    },
-                    plugins: {
-                        tooltip: {
-                            callbacks: {
-                                label: (context) => data.chords[context.dataIndex].chord
-                            }
-                        }
-                    }
-                }
-            });
-
-            // Display lyrics with chords
-            lyricsContainer.innerHTML = '<h3>Lyrics with Chords</h3>';
-            data.lyrics.forEach(line => {
-                const lineElement = document.createElement('p');
-                lineElement.textContent = `[${line.start.toFixed(2)}s - ${line.end.toFixed(2)}s] ${line.text}`;
-                
-                // Find chords that occur during this line
-                const relevantChords = data.chords.filter(chord => 
-                    chord.timestamp >= line.start && chord.timestamp <= line.end
-                );
-                if (relevantChords.length > 0) {
-                    const chordSpan = document.createElement('span');
-                    chordSpan.textContent = ` (Chords: ${relevantChords.map(c => c.chord).join(', ')})`;
-                    chordSpan.style.color = 'blue';
-                    lineElement.appendChild(chordSpan);
-                }
-                
-                lyricsContainer.appendChild(lineElement);
-            });
-        }
-    </script>
 </body>
 </html>
