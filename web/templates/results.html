@@ -1,9 +1,8 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Analysis Results</title>
+    <title>Resultados del Análisis</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -11,11 +10,23 @@
             color: #333;
             max-width: 800px;
             margin: 0 auto;
-            padding: 20px;
+            padding-top: 80px; /* Añadir espacio superior para el reproductor fijo */
             background-color: #f4f4f4;
+            overflow-y: auto;
         }
         h1, h2 {
             color: #2c3e50;
+        }
+        .fixed-audio {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            max-width: 800px;
+            background-color: #fff;
+            padding: 10px 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            z-index: 1000;
         }
         .results-container {
             background-color: #fff;
@@ -47,20 +58,31 @@
             margin-right: 10px;
             min-width: 50px;
         }
+        .highlight {
+            background-color: yellow;
+        }
     </style>
 </head>
 <body>
-    <h1>Analysis Results</h1>
+    <h1>Resultados del Análisis</h1>
+    
+    <!-- Reproductor de audio con posición fija -->
+    <div class="fixed-audio">
+        <audio id="audioPlayer" controls style="width: 100%;">
+            <!-- Ruta dinámica del archivo de audio -->
+            <source src="{{ audio_url }}" type="audio/wav">
+            Tu navegador no soporta el elemento de audio.
+        </audio>
+    </div>
     
     <div class="results-container">
-        <h2>Chords and Lyrics</h2>
+        <h2>Acordes y Letras</h2>
         <div id="syncedResults"></div>
     </div>
 
     <script>
-        // Obtener los resultados de la URL
-        const urlParams = new URLSearchParams(window.location.search);
-        const results = JSON.parse(decodeURIComponent(urlParams.get('results')));
+        // Obtener los resultados pasados desde el backend
+        const results = {{ results_json | safe }};
 
         function formatTime(seconds) {
             const mins = Math.floor(seconds / 60);
@@ -70,49 +92,95 @@
 
         function displaySyncedResults() {
             const syncedResults = document.getElementById('syncedResults');
-            let currentChordIndex = 0;
-            let currentLyricIndex = 0;
-            let currentLine = null;
+            
+            // Crear una lista combinada de eventos (acordes y letras)
+            let events = [];
+            if (results.chords) {
+                results.chords.forEach(chord => {
+                    events.push({
+                        type: 'chord',
+                        timestamp: chord.timestamp,
+                        content: chord.chord
+                    });
+                });
+            }
+            if (results.lyrics) {
+                results.lyrics.forEach(lyric => {
+                    events.push({
+                        type: 'lyric',
+                        timestamp: lyric.start,
+                        content: lyric.text
+                    });
+                });
+            }
+            // Ordenar los eventos por timestamp
+            events.sort((a, b) => a.timestamp - b.timestamp);
 
-            while (currentChordIndex < results.chords.length || currentLyricIndex < results.lyrics.length) {
-                const chord = results.chords[currentChordIndex];
-                const lyric = results.lyrics[currentLyricIndex];
+            // Crear elementos para cada evento
+            events.forEach(event => {
+                let line = document.createElement('div');
+                line.className = 'lyric-line';
+                
+                let timestamp = document.createElement('span');
+                timestamp.className = 'timestamp';
+                timestamp.textContent = formatTime(event.timestamp);
+                line.appendChild(timestamp);
 
-                if (!currentLine || (chord && (!lyric || chord.timestamp < lyric.start))) {
-                    // Nuevo acorde, nueva línea
-                    if (currentLine) {
-                        syncedResults.appendChild(currentLine);
-                    }
-                    currentLine = document.createElement('div');
-                    currentLine.className = 'lyric-line';
-
-                    let timestamp = document.createElement('span');
-                    timestamp.className = 'timestamp';
-                    timestamp.textContent = formatTime(chord.timestamp);
-                    currentLine.appendChild(timestamp);
-
+                if (event.type === 'chord') {
                     let chordSpan = document.createElement('span');
                     chordSpan.className = 'chord';
-                    chordSpan.textContent = chord.chord;
-                    currentLine.appendChild(chordSpan);
-
-                    currentChordIndex++;
-                } else if (lyric && (!chord || lyric.start <= chord.timestamp)) {
-                    // Nueva letra
+                    chordSpan.textContent = event.content;
+                    line.appendChild(chordSpan);
+                } else if (event.type === 'lyric') {
                     let lyricSpan = document.createElement('span');
                     lyricSpan.className = 'lyrics';
-                    lyricSpan.textContent = lyric.text + ' ';
-                    currentLine.appendChild(lyricSpan);
-                    currentLyricIndex++;
+                    lyricSpan.textContent = event.content;
+                    line.appendChild(lyricSpan);
                 }
-            }
 
-            if (currentLine) {
-                syncedResults.appendChild(currentLine);
-            }
+                syncedResults.appendChild(line);
+            });
         }
 
         displaySyncedResults();
+
+        // Sincronizar los acordes y letras con el audio
+        const audioPlayer = document.getElementById('audioPlayer');
+        const lines = document.querySelectorAll('.lyric-line');
+
+        audioPlayer.addEventListener('timeupdate', () => {
+            let currentTime = audioPlayer.currentTime - 0.3; // Retrasar el resaltado 0.3 segundos
+            if (currentTime < 0) currentTime = 0; // Evitar tiempos negativos
+
+            // Resaltar el evento actual
+            lines.forEach((line, index) => {
+                const timestampText = line.querySelector('.timestamp').textContent;
+                const timestampParts = timestampText.split(':');
+                const timestamp = parseInt(timestampParts[0]) * 60 + parseInt(timestampParts[1]);
+
+                if (
+                    currentTime >= timestamp &&
+                    (index === lines.length - 1 || currentTime < getNextTimestamp(index))
+                ) {
+                    if (!line.classList.contains('highlight')) {
+                        line.classList.add('highlight');
+                        line.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                } else {
+                    line.classList.remove('highlight');
+                }
+            });
+        });
+
+        function getNextTimestamp(currentIndex) {
+            if (currentIndex + 1 < lines.length) {
+                const nextTimestampText = lines[currentIndex + 1].querySelector('.timestamp').textContent;
+                const timestampParts = nextTimestampText.split(':');
+                return parseInt(timestampParts[0]) * 60 + parseInt(timestampParts[1]);
+            } else {
+                return Infinity;
+            }
+        }
     </script>
 </body>
 </html>
