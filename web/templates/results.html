@@ -148,8 +148,24 @@
         const audioPlayer = document.getElementById('audioPlayer');
         const lines = document.querySelectorAll('.lyric-line');
 
+        // Añadir evento para los GPIO
+        async function playChordOnGPIO(chord) {
+            // Usar una API o llamarlo desde el backend para tocar el acorde a través de los GPIO
+            const response = await fetch('/play_chord', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ chord: chord })
+            });
+            const result = await response.json();
+            if (result.status !== 'success') {
+                console.error('Error tocando el acorde en GPIO');
+            }
+        }
+
         audioPlayer.addEventListener('timeupdate', () => {
-            let currentTime = audioPlayer.currentTime - 0.3; // Retrasar el resaltado 0.3 segundos
+            let currentTime = audioPlayer.currentTime - 0.75; // Retrasar el resaltado 0.75 segundos
             if (currentTime < 0) currentTime = 0; // Evitar tiempos negativos
 
             // Resaltar el evento actual
@@ -165,6 +181,12 @@
                     if (!line.classList.contains('highlight')) {
                         line.classList.add('highlight');
                         line.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+                        // Tocar el acorde a través de GPIO si el evento es un acorde
+                        if (line.querySelector('.chord')) {
+                            const chord = line.querySelector('.chord').textContent;
+                            playChordOnGPIO(chord);
+                        }
                     }
                 } else {
                     line.classList.remove('highlight');

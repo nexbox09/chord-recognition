@@ -5,6 +5,7 @@ from werkzeug.utils import secure_filename
 from analysis.chord_extractor import analyze_chords
 from analysis.whisper_analyzer import transcribe_and_segment
 from analysis.youtube_extractor import download_audio
+from gpio_controller import setup_gpio, play_chord, cleanup_gpio  # Importar funciones para GPIO
 
 # Extensiones de archivos permitidas
 ALLOWED_EXTENSIONS = {'wav', 'mp3', 'ogg'}
@@ -54,6 +55,9 @@ def configure_routes(app):
             return jsonify({'error': 'No se proporcionó archivo o URL de YouTube'}), 400
 
         try:
+            # Inicializar GPIO
+            #setup_gpio()
+
             # Análisis según el tipo seleccionado
             if analysis_type == 'chords_only':
                 # Solo analizar acordes
@@ -61,11 +65,19 @@ def configure_routes(app):
                 if not chords:
                     return jsonify({"error": "No se detectaron acordes"}), 400
                 result = {'chords': chords}
+                
+                # Tocar los acordes usando GPIO
+                #for chord in chords:
+                    #play_chord(chord)  # Activar el acorde a través de los GPIO
             else:
                 # Analizar tanto acordes como letras con Whisper
                 chords = analyze_chords(filepath)
                 lyrics = transcribe_and_segment(filepath, model_size=model_size)
                 result = {'chords': chords, 'lyrics': lyrics}
+
+                # Tocar los acordes usando GPIO
+                #for chord in chords:
+                #    play_chord(chord)  # Activar el acorde a través de los GPIO
 
             # No eliminamos el archivo, ya que se necesita para la reproducción en la página de resultados
             # Obtener la URL relativa del archivo de audio para usarla en la plantilla
@@ -74,10 +86,14 @@ def configure_routes(app):
             # Convertir los resultados en JSON
             results_json = json.dumps(result)
 
+            # Limpiar GPIO después de usar
+            #cleanup_gpio()
+
             # Renderizar la plantilla 'results.html' pasando el archivo de audio y los resultados
             return render_template('results.html', audio_url=audio_url, results_json=results_json)
 
         except Exception as e:
+            #cleanup_gpio()  # Asegurarse de limpiar GPIO en caso de error
             print(f"Error durante el procesamiento: {str(e)}")
             return jsonify({'error': str(e)}), 500
 
@@ -87,3 +103,18 @@ def configure_routes(app):
         Ruta para mostrar los resultados de análisis (acordes y letras).
         """
         return render_template('results.html')
+
+    # Endpoint para controlar los GPIO cuando se llamen desde el frontend (results.html)
+    @app.route('/play_chord', methods=['POST'])
+    def play_chord_api():
+        """
+        API que recibe un acorde del frontend y lo toca a través de los GPIO.
+        """
+        data = request.get_json()
+        chord = data.get('chord')
+
+        if chord:
+            #play_chord([chord])  # Tocar el acorde en los GPIO
+            return jsonify({'status': 'success'})
+        else:
+            return jsonify({'status': 'error', 'message': 'No se proporcionó acorde'}), 400
